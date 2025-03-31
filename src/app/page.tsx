@@ -1,101 +1,182 @@
-import Image from "next/image";
+'use client'; // This file is a client component
+import Image from 'next/image'; // Import the Image component from Next.js
+import { useState, useEffect, useRef } from 'react'; // Import useState, useEffect, and useRef
+import confetti from 'canvas-confetti'; // Import confetti library
+
+const IMAGE_PATHS = {
+  FLOWER: '/Flower.png',
+  WHITE: '/White.png',
+};
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null); // State to track the position of the image
+  const [dragOffset, setDragOffset] = useState({ offsetX: 0, offsetY: 0 }); // State to store the drag offset
+  const flowerRef = useRef<HTMLDivElement>(null); // Ref for the flower image
+  const [initialPosition, setInitialPosition] = useState<{ x: number; y: number } | null>(null); // Store the initial position
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  useEffect(() => {
+    // Calculate the initial position dynamically after the component mounts
+    const initialX = window.innerWidth / 2 - 200; // Center horizontally (assuming image width is 400px)
+    const initialY = window.innerHeight / 2; // Lower the image slightly
+    setPosition({ x: initialX, y: initialY });
+    setInitialPosition({ x: initialX, y: initialY }); // Save the initial position
+  }, []); // Empty dependency array ensures this runs only once after the component mounts
+
+  const handleDragStart = (event: React.DragEvent<HTMLDivElement>) => {
+    // Store the initial offset of the mouse relative to the element
+    const rect = event.currentTarget.getBoundingClientRect();
+    const offsetX = event.clientX - rect.left;
+    const offsetY = event.clientY - rect.top;
+
+    setDragOffset({ offsetX, offsetY }); // Save the offset in state
+    event.dataTransfer.setData(
+      'application/json',
+      JSON.stringify({ offsetX, offsetY })
+    );
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault(); // Prevent default to allow dropping
+
+    // Use the dragOffset state as a fallback if dataTransfer is empty
+    let offset;
+    try {
+      offset = JSON.parse(event.dataTransfer.getData('application/json'));
+    } catch (error) {
+      console.error('Failed to parse dataTransfer JSON:', error);
+      offset = dragOffset;
+    }
+
+    setPosition({
+      x: event.clientX - offset.offsetX,
+      y: event.clientY - offset.offsetY,
+    });
+  };
+
+  const handleDrop = () => {
+    if (!position || !initialPosition) return; // Ensure position and initialPosition are not null
+
+    if (flowerRef.current) {
+      const flowerRect = flowerRef.current.getBoundingClientRect();
+      const bottomImageRect = {
+        left: position.x,
+        top: position.y,
+        right: position.x + 400,
+        bottom: position.y + 400,
+      };
+
+      // Check for overlap
+      if (
+        bottomImageRect.left < flowerRect.right &&
+        bottomImageRect.right > flowerRect.left &&
+        bottomImageRect.top < flowerRect.bottom &&
+        bottomImageRect.bottom > flowerRect.top
+      ) {
+        // Play confetti
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { x: 0.5, y: 0.5 },
+        });
+
+        // Play hurray sound
+        const audio = new Audio('/hurray.mp3'); // Ensure you have a "hurray.mp3" file in your public folder
+        audio.volume = 1.0; // Set volume to maximum
+        audio.play().then(() => {
+          // Reset position
+          if (initialPosition) {
+            setPosition(initialPosition);
+          } else {
+            console.warn('Initial position is null, cannot reset position.');
+          }
+        }).catch((error) => {
+          console.error('Audio playback failed:', error);
+        });
+
+        // Reset position
+        setPosition(initialPosition);
+      }
+    }
+  };
+
+  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const touch = event.touches[0]; // Get the first touch point
+    const offsetX = touch.clientX - rect.left;
+    const offsetY = touch.clientY - rect.top;
+
+    setDragOffset({ offsetX, offsetY }); // Save the offset in state
+  };
+
+  const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    event.preventDefault(); // Prevent default scrolling behavior
+    const touch = event.touches[0]; // Get the first touch point
+
+    setPosition({
+      x: touch.clientX - dragOffset.offsetX,
+      y: touch.clientY - dragOffset.offsetY,
+    });
+  };
+
+  const handleTouchEnd = () => {
+    handleDrop(); // Check for overlap on touch end
+  };
+
+  return (
+    <div className="bg-blue-400">
+      <div className="grid grid-cols-1 grid-rows-2 gap-28">
+        <div>
+          <div className="grid grid-cols-2 grid-rows-1 gap-4 pt-6">
+            <div
+              className="flex justify-center items-center"
+              ref={flowerRef} // Attach ref to the flower image
+            >
+              <Image
+                className="rounded-lg" // Add this class to make the image rounded
+                src={IMAGE_PATHS.FLOWER} // Use a constant for the image path
+                alt="Flower"
+                width={400}
+                height={400}
+              />
+            </div>
+            <div className="flex justify-center items-center">
+              <Image
+                className="rounded-lg" // Add this class to make the image rounded
+                src={IMAGE_PATHS.WHITE} // Use a constant for the image path
+                alt="Flower"
+                width={400}
+                height={400}
+              />
+            </div>
+          </div>
+        </div>
+        {position !== null && ( // Conditionally render the draggable element only after the position is set
+          <div
+            className="flex justify-center items-center"
+            draggable // Make the div draggable for mouse interactions
+            onDragStart={handleDragStart} // Handle the drag start event
+            onDragOver={handleDragOver} // Handle the drag over event
+            onDragEnd={handleDrop} // Handle the drop event
+            onTouchStart={handleTouchStart} // Handle the touch start event
+            onTouchMove={handleTouchMove} // Handle the touch move event
+            onTouchEnd={handleTouchEnd} // Handle the touch end event
+            style={{
+              position: 'absolute', // Position the image absolutely
+              left: position.x, // Use the x position from state
+              top: position.y, // Use the y position from state
+              cursor: 'grab', // Add a grab cursor for better UX
+            }}
           >
             <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+              className="rounded-2xl" // Add this class to make the image rounded
+              src="/Flower.png" // Use a relative path starting from the public folder
+              alt="Flower"
+              width={400}
+              height={400}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
