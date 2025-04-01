@@ -1,6 +1,7 @@
 'use client'; // This file is a client component
 import Image from 'next/image'; // Import the Image component from Next.js
 import { useState, useEffect, useRef } from 'react'; // Import useState, useEffect, and useRef
+// @ts-ignore
 import confetti from 'canvas-confetti'; // Import confetti library
 
 const IMAGE_PATHS = {
