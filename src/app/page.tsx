@@ -2,6 +2,7 @@
 import Image from 'next/image'; // Import the Image component from Next.js
 import { useState, useEffect, useRef } from 'react'; // Import useState, useEffect, and useRef
 //@ts-expect-error
+//bcz
 import confetti from 'canvas-confetti'; // Import confetti library
 
 const IMAGE_PATHS = {
